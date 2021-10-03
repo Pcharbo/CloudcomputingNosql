@@ -5,9 +5,10 @@ import requests
 import json
 from urllib.parse import urlparse
 import pprint
+import config
 
 # Connexion au cluster
-cluster=MongoClient("mongodb+srv://admin:12345@cluster0.tvafg.mongodb.net/myFirstDatabase?retryWrites=true&w=majority")
+cluster=MongoClient("mongodb+srv://"+config.id+"@cluster0.tvafg.mongodb.net/myFirstDatabase?retryWrites=true&w=majority")
 #Connexion à la db
 db=cluster["bycicle_services"]
 collection = db["LilleSingle"]

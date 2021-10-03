@@ -3,12 +3,12 @@ import pymongo
 from pymongo import MongoClient
 import requests
 import json
-from urllib.parse import urlparse
 import pprint
 import time
+import config
 
 # Connexion au cluster
-cluster=MongoClient("mongodb+srv://admin:12345@cluster0.tvafg.mongodb.net/myFirstDatabase?retryWrites=true&w=majority")
+cluster=MongoClient("mongodb+srv://"+config.id+"@cluster0.tvafg.mongodb.net/myFirstDatabase?retryWrites=true&w=majority")
 #Connexion à la db
 db=cluster["bycicle_services"]
 collection = db["LilleSingle"] #collection with single data for each station
@@ -16,8 +16,7 @@ collection = db["LilleSingle"] #collection with single data for each station
 #Find a station with some letters and case insensitive
 def findaStation(recherche):
     result = collection.find({"fields.nom":{"$regex": recherche, "$options":'i'}})
-    for i in result:
-        print(i)
+    return result
 
 findaStation("treiLLE") #will print the N.D. DE LA TREILLE station
 
@@ -49,18 +48,25 @@ def deactivate(): #put stations around a polygon in state : HORS SERVICE
 }})
     for i in result:
         update(i["fields"]["nom"])
-        print(i)
+        
 
 deactivate()
 
 def ratiobike():
-    collection = db["Lille"] #change collection to db with hostorical data of around 10 minutes
-    result = collection.aggregate([{
+    collection = db["Lille"] #change collection to db with historical data of around 10 minutes
+    result = collection.aggregate([{ #return a cursor that give all stations with a ratio bike/total_stand under 20% for the 10 minutes
    "$group":{ 
-       "_id": { "id":"$id","hourofday": { "$hour": "7" } },
-       "total":{"$avg":"nbvelosdispo","$avg":"nbplacesdispo"}
+       "_id": {"name":"$fields.nom","hourofday": { "$hour": "$record_timestamp" },"totalplace":{"$sum":["$fields.nbvelosdispo","$fields.nbplacesdispo"]}},
+       "bike":{"$avg":"$fields.nbvelosdispo"},
    },
-   }])
-    print(result)
+   },
+   {"$project" : {"_id":1, "ratio": { "$cond": [ { "$eq": [ "$_id.totalplace", 0 ] }, "N/A", {"$divide":["$bike","$_id.totalplace"]}]}}},
+   { "$match": { "ratio" : { "$lt": 0.2 }}},
 
-ratiobike()
+   ])
+
+    
+    return result
+
+for i in ratiobike():
+    print(i)
